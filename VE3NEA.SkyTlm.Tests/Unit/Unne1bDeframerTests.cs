@@ -136,6 +136,7 @@ public sealed class Unne1bDeframerTests
         Frame frame = Assert.Single(Unne1bDeframer.Decode(soft));
         Assert.True(frame.CrcValid);
         Assert.Equal("UNNE-1B type 2", frame.Note);
+        Assert.Equal(1, frame.CorrectedBits);
     }
 
     [Fact]
@@ -151,6 +152,7 @@ public sealed class Unne1bDeframerTests
         Assert.True(frame.CrcValid);
         Assert.Equal(0x2C, frame.Bytes[0]);
         Assert.Contains("soft repair (2 bit(s))", frame.Note);
+        Assert.Equal(2, frame.CorrectedBits);
     }
 
     [Fact]
@@ -166,6 +168,7 @@ public sealed class Unne1bDeframerTests
         Frame frame = Assert.Single(Unne1bDeframer.Decode(soft));
         Assert.True(frame.CrcValid);
         Assert.Contains("soft repair (3 bit(s))", frame.Note);
+        Assert.Equal(3, frame.CorrectedBits);
         Assert.Equal(0x25, frame.Bytes[4]);
     }
 

@@ -169,6 +169,16 @@ namespace VE3NEA.SkyTlm.Core
     /// (proof of digital signal beats any shape score).</summary>
     public bool GateByShape { get; init; } = true;
 
+    /// <summary>
+    /// A satellite-specific deframer, when the database's generic framing
+    /// label describes a GENESIS variant with incompatible packet lengths.
+    /// This participates in every CRC-gated demod/timing retry and supplies
+    /// the correct MaxFrameBits for segment overlap and tail extension.
+    /// Null preserves the ordinary shared deframer registry.
+    /// </summary>
+    public IDeframer? DeframerOverride { get; init; }
+
+
     /// <summary>When <c>true</c>, demodulate even segments whose detector statistics already preclude every
     /// validation path (noise/impulse blips), so they can be surfaced for inspection. Default <c>false</c>:
     /// such segments skip the (expensive) demodulator — the only gate they could still pass is a CRC frame,
@@ -568,7 +578,7 @@ namespace VE3NEA.SkyTlm.Core
         bpskCoherent = new BpskDemodulator(new BpskDemodOptions { Differential = false, Manchester = p.Manchester == true });
         bpskDifferential = new BpskDemodulator(new BpskDemodOptions { Differential = true, Manchester = p.Manchester == true });
       }
-      deframer = Deframing.DeframerFactory.Create(p);
+      deframer = o.DeframerOverride ?? Deframing.DeframerFactory.Create(p);
       templateBank = CpmTemplate.SynthesizeBank(p);   // cached; the modeled spectra for the averaged-spectrum match
       // estimator on the SAME FFT grid as the detector (Fft), so the averaged detection power spectrum feeds
       // its CFO/shape methods directly — no second FFT pass.

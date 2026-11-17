@@ -178,6 +178,13 @@ namespace VE3NEA.SkyTlm.Core
     /// </summary>
     public IDeframer? DeframerOverride { get; init; }
 
+    /// <summary>
+    /// Continue demodulating for one maximum frame beyond a detection release.
+    /// A fading 200 Bd FSK burst can dip below the PSD trigger while still
+    /// carrying frames. Off by default, preserving existing receivers.
+    /// </summary>
+    public bool RecoverFadedTail { get; init; } = false;
+
 
     /// <summary>When <c>true</c>, demodulate even segments whose detector statistics already preclude every
     /// validation path (noise/impulse blips), so they can be surfaced for inspection. Default <c>false</c>:
@@ -1125,8 +1132,9 @@ namespace VE3NEA.SkyTlm.Core
       // only when the peak-relative release — not the absolute noise floor — closed the burst: that is the
       // case where the signal can still be decodable past the detector's cut and a frame may be in flight.
       // A burst that faded below OffSigma has nothing decodable in its tail.
-      long tail = defer && burstSigFrames >= o.MinShapedFrames
-                  && burstPeakZ * o.ReleaseFraction > o.OffSigma
+      long tail = defer && (o.RecoverFadedTail ||
+                   (burstSigFrames >= o.MinShapedFrames
+                    && burstPeakZ * o.ReleaseFraction > o.OffSigma))
                   ? tailSamples : 0;
       var pend = new PendingDecode(segStartAbs, sStartAbs, sEndAbs, sEndAbs, sEndAbs + tail,
         avgQ, avgQRaw, snr, matchedFrac, burstShapedFrames, meanMatch);
@@ -1324,7 +1332,9 @@ namespace VE3NEA.SkyTlm.Core
               double ft = f.SoftBitOffset >= 0 ? (segStartAbs + f.SoftBitOffset * sps) / fs : timeSeconds;
               // A frame must START inside the detected burst (or its lead overlap): the tail extension exists
               // only to FINISH frames already in flight — a sync found in the post-burst noise is discarded.
-              if (ft > detEndSec + 0.1) continue;
+              if (ft > detEndSec + 0.1 &&
+                  (!o.RecoverFadedTail || ft > detEndSec + (double)tailSamples / fs))
+                continue;
               // the frame's absolute on-air span (when the deframer reports it) drives the overlap dedup.
               long startAbs = f.SoftBitOffset >= 0 ? segStartAbs + (long)(f.SoftBitOffset * sps) : -1;
               long endAbs = f.SoftBitEnd >= 0 ? segStartAbs + (long)(f.SoftBitEnd * sps) : -1;
@@ -1346,7 +1356,9 @@ namespace VE3NEA.SkyTlm.Core
               {
                 double ft = f.SoftBitOffset >= 0 ? (tailStartAbs + f.SoftBitOffset * tsps) / fs
                                                  : detEndSec + 1;   // unknown position → not provably in-burst
-                if (ft > detEndSec + 0.1) continue;
+                if (ft > detEndSec + 0.1 &&
+                    (!o.RecoverFadedTail || ft > detEndSec + (double)tailSamples / fs))
+                  continue;
                 long startAbs = f.SoftBitOffset >= 0 ? tailStartAbs + (long)(f.SoftBitOffset * tsps) : -1;
                 long endAbs = f.SoftBitEnd >= 0 ? tailStartAbs + (long)(f.SoftBitEnd * tsps) : -1;
                 if (IsDuplicateFrame(f.Bytes, ft, startAbs, endAbs)) continue;

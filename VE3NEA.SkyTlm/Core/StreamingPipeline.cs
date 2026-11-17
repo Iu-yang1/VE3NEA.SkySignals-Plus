@@ -1269,7 +1269,11 @@ namespace VE3NEA.SkyTlm.Core
         // already filtered junk above; for the curated path apply the existing shape-based check.
         bool canValidate = (matchedFrac >= o.MinMatchedFraction && shapedFrames >= o.MinShapedFrames)
                            || shapePass;
-        if (!burstBlindDevHz.HasValue && !canValidate && !o.DecodeRejected
+        // GateByShape=false is also used for real-IQ diagnostics: do not
+        // silently discard a low-shape burst before the caller can inspect
+        // its soft decisions. The expensive early skip is only valid when
+        // shape gating is active and rejected bursts are not requested.
+        if (o.GateByShape && !burstBlindDevHz.HasValue && !canValidate && !o.DecodeRejected
             && shapedFrames < o.MinShapedFrames && match < CrcRescueMinMatch)
           return;
 

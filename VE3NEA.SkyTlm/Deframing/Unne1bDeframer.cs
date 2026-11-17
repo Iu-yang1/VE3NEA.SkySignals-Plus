@@ -119,7 +119,10 @@ namespace VE3NEA.SkyTlm.Deframing
           yield return frame with
           {
             SoftBitOffset = i + 1 - SyncBits,
-            SoftBitEnd = dataStart + 8 * length
+            SoftBitEnd = dataStart + 8 * length,
+            // The pipeline's baud/deviation lock must not take a
+            // Chase-repaired bare CRC as an uncorrected proof.
+            CorrectedBits = syncErrors + repaired
           };
           i = dataStart + 8 * length - 1;
           break;
